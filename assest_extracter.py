@@ -70,7 +70,7 @@ def print_consumer(event_queue: multiprocessing.Queue, total_bundles: int, stop_
                 color = "yellow" if item_type == "text" else "blue"
                 # Display path relative to the output folder
                 relative_save_path = os.path.relpath(save_path, output_path)
-                console.print(f"[dim]Saved [{color}]{filename} [dim]to [reset]{relative_save_path}")
+                console.print(f"[dim]Saved [{color}]{filename}[reset] [dim]to [reset]{relative_save_path}")
             elif event_type == "error":
                 _, path, error_msg = event[1], event[2]
                 console.print(f"❌ Error in {os.path.basename(path)}: {error_msg}", style="bold red")
@@ -213,5 +213,8 @@ def main():
         create_gui()
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
-    main()
+    try:
+        multiprocessing.freeze_support()
+        main()
+    except:
+        input()
