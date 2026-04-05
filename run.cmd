@@ -1,6 +1,18 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
+call :main %*
+set "RUN_EXIT=%ERRORLEVEL%"
+if not "!RUN_EXIT!"=="0" (
+    echo.
+    echo [run] Script failed with exit code !RUN_EXIT!
+    echo Press any key to exit . . .
+    pause >nul
+)
+exit /b %RUN_EXIT%
+
+:main
+
 rem ====================
 rem Project configuration
 rem ====================
