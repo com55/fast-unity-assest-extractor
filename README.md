@@ -1,73 +1,108 @@
 # Unity Asset Extractor
 
-This tool allows you to extract assets (Texture2D, TextAsset) from Unity Asset Bundles with ease. It supports both a Graphical User Interface (GUI) for simple usage and a Command Line Interface (CLI) for advanced scripting.
+Unity Asset Extractor is a Unity bundle extraction tool with both GUI and CLI modes.
+It supports multiprocessing, progress display, selectable asset types, and configurable source bundle extensions.
 
 ## Features
 
-- **GUI Mode**: User-friendly interface to select source/output folders, CPU usage, and asset types.
-- **CLI Mode**: Command-line arguments for automated extraction.
-- **Multi-process Support**: Leverages multiple CPU cores for faster extraction.
-- **Real-time Progress Bar**: Displays extraction progress with a clear progress bar and live updates for saved files.
-- **Load Balancing**: Optimizes task distribution across CPU cores to handle varying bundle sizes efficiently.
+- GUI mode with folder pickers, CPU usage selection, extract-type checkboxes, and target extension input.
+- CLI mode for automation and scripting.
+- Configurable input bundle extensions (default: `.unity3d`, `.bundle`).
+- Multiprocessing extraction with progress bar and live save logs.
+- Smart runtime launcher via `run.cmd` with cache to speed up repeated runs.
 
-## Requirements
+## Runtime Requirements
 
-- `Python 3.7+`
-- `UnityPy==1.23.0`
-- `rich`
-- `tkinter` (usually bundled with Python)
+- Python 3.7+
+- Dependencies from `requirements.txt` are `UnityPy==1.23.0` and `rich`.
+- `tkinter` (usually bundled with standard Python on Windows)
 
-You can install the required Python packages using pip:
+## Recommended Start (Windows)
 
-```bash
-pip install UnityPy==1.23.0 rich
+Use `run.cmd` at project root:
+
+```bat
+run.cmd
 ```
 
-## How to Use
+`run.cmd` runtime flow:
 
-### 1. GUI Mode (Graphical User Interface)
+1. Check existing `.venv` first.
+2. If `.venv` exists and requirements are satisfied, run from `.venv` immediately.
+3. If `.venv` exists but requirements are not satisfied, install requirements and run.
+4. If no usable `.venv`, check system Python.
+5. If Python version and requirements are valid, run directly with system Python.
+6. If Python exists but version is below requirement.
+6.1 If `uv` exists, create/update `.venv` with `uv` and run.
+6.2 If `uv` does not exist, create/update `.venv` using installed Python and run.
+7. If Python is not available, install/check `uv` and run using `uv run`.
 
-Double click `assest_extracter.py` or Run the script without any command-line arguments to launch the GUI:
+## Cache Behavior
 
-```bash
+- Launcher cache file: `.run-cache.json`
+- Cache file is ignored via `.gitignore`.
+- Cache is used to skip repeated environment checks on next runs.
+
+## GUI Usage
+
+Run without CLI arguments:
+
+```bat
+run.cmd
+```
+
+or directly:
+
+```bat
 python assest_extracter.py
 ```
 
-In the GUI:
-- **Source Folder**: Click "Browse" to select the directory containing your `.bundle` files.
-- **Output Folder**: Click "Browse" to select the directory where you want to save the extracted assets.
-- **CPU Usage (%)**: Choose the percentage of your CPU cores to utilize for extraction (25%, 50%, 75%, or 100%).
-- **Extract Types**: Select the types of assets you wish to extract (e.g., `Texture2D`, `TextAsset`).
-- Click "Start" to begin the extraction process. The GUI will close, and the process will run in your console/terminal.
+GUI fields:
 
-### 2. CLI Mode (Command Line Interface)
+- Source Folder
+- Output Folder
+- CPU Usage (`25`, `50`, `75`, `100`)
+- Target Extensions (comma-separated, default `.unity3d,.bundle`)
+- Extract Types
 
-You can use the following command-line arguments for automated extraction:
+## CLI Usage
 
-```bash
-python assest_extracter.py -s <source_path> -o <output_path> [-c <cpu_percent>] [-t <type1> <type2> ...]
+### Through launcher (recommended)
+
+```bat
+run.cmd -s <source_path> -o <output_path> [-c <cpu_percent>] [-t <types...>] [-e <extensions...>]
 ```
 
-**Arguments:**
+### Direct Python
 
-- `-s`, `--source`: **Required**. Path to the source directory containing `.bundle` files.
-- `-o`, `--output`: **Required**. Path to the output directory where extracted assets will be saved.
-- `-c`, `--cpu`: **Optional**. Percentage of CPU to use. Valid options: `25`, `50`, `75`, `100`. Default is `100`.
-- `-t`, `--type`: **Optional**. Space-separated list of file types to extract. Valid options: `Texture2D`, `TextAsset`. If not specified, all default types will be extracted.
-
-**Examples:**
-
-Extract all supported types from `./AssetBundles/` to `./Extracted/` using 75% of CPU:
-```bash
-python assest_extracter.py -s "./AssetBundles/" -o "./Extracted/" -c 75
+```bat
+python assest_extracter.py -s <source_path> -o <output_path> [-c <cpu_percent>] [-t <types...>] [-e <extensions...>]
 ```
 
-Extract only `Texture2D` assets from `/path/to/bundles/` to `/path/to/output/` using default CPU (100%):
-```bash
-python assest_extracter.py --source "/path/to/bundles/" --output "/path/to/output/" -t Texture2D
+### Arguments
+
+- `-s`, `--source` Required. Source directory containing bundle files.
+- `-o`, `--output` Required. Output directory for extracted assets.
+- `-c`, `--cpu` Optional. CPU percent: `25`, `50`, `75`, `100`. Default: `100`.
+- `-t`, `--type` Optional. Space-separated extract types: `texture2d`, `textasset`, `audioclip`, `gameobject`, `mesh`, `font`, `sprite`, `shader`, `monobehaviour`.
+- `-e`, `--extensions` Optional. Space-separated input file extensions. Default: `.unity3d .bundle`
+
+### CLI Examples
+
+Extract all default types from default extensions:
+
+```bat
+run.cmd -s "D:/MyGame/Bundles" -o "D:/MyGame/Extracted"
 ```
 
-Extract both `Texture2D` and `TextAsset` using 50% CPU:
-```bash
-python assest_extracter.py -s "D:/MyGame/Bundles" -o "D:/MyGame/Extracted" -c 50 -t Texture2D TextAsset
-``` 
+Extract only `texture2d` and `textasset` with 50% CPU:
+
+```bat
+run.cmd -s "D:/MyGame/Bundles" -o "D:/MyGame/Extracted" -c 50 -t texture2d textasset
+```
+
+Extract with custom input bundle extensions:
+
+```bat
+run.cmd -s "D:/MyGame/Bundles" -o "D:/MyGame/Extracted" -e .bundle .unity3d .ab
+```

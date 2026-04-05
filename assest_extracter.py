@@ -46,6 +46,21 @@ DEFAULT_TYPES = [
     "MonoBehaviour"
 ]
 
+DEFAULT_BUNDLE_EXTENSIONS = [".unity3d", ".bundle"]
+
+
+def normalize_extensions(extensions: list[str]) -> list[str]:
+    normalized = []
+    for ext in extensions:
+        cleaned = ext.strip().lower()
+        if not cleaned:
+            continue
+        if not cleaned.startswith("."):
+            cleaned = "." + cleaned
+        if cleaned not in normalized:
+            normalized.append(cleaned)
+    return normalized
+
 def process_bundle(full_path_output_types_queue):
     full_path, output_path, selected_types, event_queue = full_path_output_types_queue
     try:
@@ -73,7 +88,7 @@ def process_bundle(full_path_output_types_queue):
                 filename = peek_name.split(".")[0] + "_(" + str(obj.path_id) + ")"
                 
                 try:
-                    file_ext = "." + peek_name[-1].split(".")[1].lower()
+                    file_ext = "." + peek_name.split(".")[1].lower()
                 except IndexError:
                     file_ext = ""
                     
@@ -166,11 +181,13 @@ def print_consumer(event_queue: multiprocessing.Queue, total_bundles: int, stop_
             threading.Event().wait(0.01)
 
 
-def extract_assets_from_bundles(source_path: str, output_path: str, selected_types: list[str], cpu_percent: int):
+def extract_assets_from_bundles(source_path: str, output_path: str, selected_types: list[str], cpu_percent: int, target_extensions: list[str]):
+    normalized_extensions = normalize_extensions(target_extensions) or DEFAULT_BUNDLE_EXTENSIONS
+
     bundle_files = [
         os.path.join(root, f)
         for root, _, files in os.walk(source_path)
-        for f in files if f.endswith(".unity3d") or f.endswith(".bundle")
+        for f in files if any(f.lower().endswith(ext) for ext in normalized_extensions)
     ]
 
     total_cpu_count = multiprocessing.cpu_count()
@@ -234,22 +251,32 @@ def create_gui():
     cpu_menu.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
     cpu_menu.set(100)
 
-    tk.Label(root, text="Extract Types:").grid(row=3, column=0, padx=5, pady=5, sticky="nw")
+    tk.Label(root, text="Target File Extensions:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+    extensions_entry = tk.Entry(root, width=50)
+    extensions_entry.grid(row=3, column=1, padx=5, pady=5)
+    extensions_entry.insert(0, ",".join(DEFAULT_BUNDLE_EXTENSIONS))
+
+    tk.Label(root, text="Extract Types:").grid(row=4, column=0, padx=5, pady=5, sticky="nw")
     type_vars = {}
     for i, type_name in enumerate(DEFAULT_TYPES):
         var = tk.BooleanVar(value=False)
         cb = tk.Checkbutton(root, text=type_name, variable=var)
-        cb.grid(row=3 + i, column=1, sticky="w", padx=5, pady=2)
+        cb.grid(row=4 + i, column=1, sticky="w", padx=5, pady=2)
         type_vars[type_name] = var
 
     def start_extraction_gui():
         source_path = source_path_entry.get()
         output_path = output_path_entry.get()
         cpu_percent = cpu_percent_var.get()
+        target_extensions = normalize_extensions(extensions_entry.get().split(","))
         selected_types = [name for name, var in type_vars.items() if var.get()]
 
         if not source_path or not output_path:
             messagebox.showerror("Error", "Please select both source and output folders.")
+            return
+
+        if not target_extensions:
+            messagebox.showerror("Error", "Please provide at least one valid target extension.")
             return
         
         if not selected_types:
@@ -259,12 +286,12 @@ def create_gui():
         root.destroy() # Close the GUI window before starting extraction
 
         try:
-            extract_assets_from_bundles(source_path, output_path, selected_types, cpu_percent)
+            extract_assets_from_bundles(source_path, output_path, selected_types, cpu_percent, target_extensions)
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
 
     extract_button = tk.Button(root, text="Start", command=start_extraction_gui, width=8)
-    extract_button.grid(row=3 + len(DEFAULT_TYPES), column=0, columnspan=3, pady=10)
+    extract_button.grid(row=4 + len(DEFAULT_TYPES), column=0, columnspan=3, pady=10)
 
     # Center the window
     root.update_idletasks()
@@ -284,6 +311,8 @@ def main():
                         help="Percentage of CPU to use (25, 50, 75, 100)")
     parser.add_argument("-t", "--type", nargs='*', choices=[t.lower() for t in DEFAULT_TYPES],
                         help=f"File types to extract (e.g., {' '.join([t.lower() for t in DEFAULT_TYPES])})")
+    parser.add_argument("-e", "--extensions", nargs='*', default=DEFAULT_BUNDLE_EXTENSIONS,
+                        help="Target bundle file extensions (default: .unity3d .bundle)")
 
     args = parser.parse_args()
 
@@ -295,14 +324,18 @@ def main():
             parser.print_help()
             sys.exit(1)
         selected_types = [t.capitalize() for t in args.type] if args.type else DEFAULT_TYPES
-        console.print(f"CLI Mode: Source='{args.source}', Output='{args.output}', CPU={args.cpu}%, Types={selected_types}")
-        extract_assets_from_bundles(args.source, args.output, selected_types, args.cpu)
+        target_extensions = normalize_extensions(args.extensions)
+        if not target_extensions:
+            console.print("[bold red]Error: Please provide at least one valid extension via --extensions.[/bold red]")
+            sys.exit(1)
+        console.print(
+            f"CLI Mode: Source='{args.source}', Output='{args.output}', CPU={args.cpu}%, "
+            f"Types={selected_types}, Extensions={target_extensions}"
+        )
+        extract_assets_from_bundles(args.source, args.output, selected_types, args.cpu, target_extensions)
     else:
         create_gui()
 
 if __name__ == "__main__":
-    try:
-        multiprocessing.freeze_support()
-        main()
-    except:
-        input()
+    multiprocessing.freeze_support()
+    main()
