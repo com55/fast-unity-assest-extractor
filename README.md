@@ -5,7 +5,7 @@ It supports multiprocessing, progress display, selectable asset types, and confi
 
 ## Features
 
-- GUI mode with folder pickers, CPU usage selection, extract-type checkboxes, and target extension input.
+- GUI mode with folder pickers, CPU core selection, extract-type checkboxes, and target extension input.
 - CLI mode for automation and scripting.
 - Configurable input bundle extensions (default: `.unity3d`, `.bundle`).
 - Multiprocessing extraction with progress bar and live save logs.
@@ -61,7 +61,7 @@ GUI fields:
 
 - Source Folder
 - Output Folder
-- CPU Usage (`25`, `50`, `75`, `100`)
+- CPU Cores (`1` to total cores on your machine)
 - Target Extensions (comma-separated, default `.unity3d,.bundle`)
 - Extract Types
 
@@ -70,20 +70,20 @@ GUI fields:
 ### Through launcher (recommended)
 
 ```bat
-run.cmd -s <source_path> -o <output_path> [-c <cpu_percent>] [-t <types...>] [-e <extensions...>]
+run.cmd -s <source_path> -o <output_path> [-c <cpu_cores>] [-t <types...>] [-e <extensions...>]
 ```
 
 ### Direct Python
 
 ```bat
-python assest_extracter.py -s <source_path> -o <output_path> [-c <cpu_percent>] [-t <types...>] [-e <extensions...>]
+python assest_extracter.py -s <source_path> -o <output_path> [-c <cpu_cores>] [-t <types...>] [-e <extensions...>]
 ```
 
 ### Arguments
 
 - `-s`, `--source` Required. Source directory containing bundle files.
 - `-o`, `--output` Required. Output directory for extracted assets.
-- `-c`, `--cpu` Optional. CPU percent: `25`, `50`, `75`, `100`. Default: `100`.
+- `-c`, `--cpu` Optional. Number of CPU cores to use: `1` to total cores on your machine. Default: all available cores.
 - `-t`, `--type` Optional. Space-separated extract types: `texture2d`, `textasset`, `audioclip`, `gameobject`, `mesh`, `font`, `sprite`, `shader`, `monobehaviour`.
 - `-e`, `--extensions` Optional. Space-separated input file extensions. Default: `.unity3d .bundle`
 
@@ -95,10 +95,10 @@ Extract all default types from default extensions:
 run.cmd -s "D:/MyGame/Bundles" -o "D:/MyGame/Extracted"
 ```
 
-Extract only `texture2d` and `textasset` with 50% CPU:
+Extract only `texture2d` and `textasset` with 4 CPU cores:
 
 ```bat
-run.cmd -s "D:/MyGame/Bundles" -o "D:/MyGame/Extracted" -c 50 -t texture2d textasset
+run.cmd -s "D:/MyGame/Bundles" -o "D:/MyGame/Extracted" -c 4 -t texture2d textasset
 ```
 
 Extract with custom input bundle extensions:

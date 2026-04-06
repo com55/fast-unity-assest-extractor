@@ -181,7 +181,7 @@ def print_consumer(event_queue: multiprocessing.Queue, total_bundles: int, stop_
             threading.Event().wait(0.01)
 
 
-def extract_assets_from_bundles(source_path: str, output_path: str, selected_types: list[str], cpu_percent: int, target_extensions: list[str]):
+def extract_assets_from_bundles(source_path: str, output_path: str, selected_types: list[str], cpu_cores: int, target_extensions: list[str]):
     normalized_extensions = normalize_extensions(target_extensions) or DEFAULT_BUNDLE_EXTENSIONS
 
     bundle_files = [
@@ -191,10 +191,7 @@ def extract_assets_from_bundles(source_path: str, output_path: str, selected_typ
     ]
 
     total_cpu_count = multiprocessing.cpu_count()
-    if cpu_percent == 100:
-        num_workers = total_cpu_count
-    else:
-        num_workers = max(1, int(total_cpu_count * (cpu_percent / 100)))
+    num_workers = min(max(1, cpu_cores), total_cpu_count)
 
     total_bundles = len(bundle_files)
 
@@ -244,12 +241,14 @@ def create_gui():
     output_path_entry.grid(row=1, column=1, padx=5, pady=5)
     tk.Button(root, text="Browse", command=lambda: output_path_entry.delete(0, tk.END) or output_path_entry.insert(0, filedialog.askdirectory())).grid(row=1, column=2, padx=5, pady=5)
 
-    tk.Label(root, text="CPU Usage (%):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-    cpu_percent_var = tk.IntVar(value=100)
-    cpu_options = ["25", "50", "75", "100"]
-    cpu_menu = ttk.Combobox(root, textvariable=cpu_percent_var, values=cpu_options, state="readonly")
+    total_cpu_count = multiprocessing.cpu_count()
+
+    tk.Label(root, text="CPU Cores:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+    cpu_cores_var = tk.IntVar(value=total_cpu_count)
+    cpu_options = [str(i) for i in range(1, total_cpu_count + 1)]
+    cpu_menu = ttk.Combobox(root, textvariable=cpu_cores_var, values=cpu_options, state="readonly")
     cpu_menu.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
-    cpu_menu.set(100)
+    cpu_menu.set(str(total_cpu_count))
 
     tk.Label(root, text="Target File Extensions:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
     extensions_entry = tk.Entry(root, width=50)
@@ -267,7 +266,7 @@ def create_gui():
     def start_extraction_gui():
         source_path = source_path_entry.get()
         output_path = output_path_entry.get()
-        cpu_percent = cpu_percent_var.get()
+        cpu_cores = cpu_cores_var.get()
         target_extensions = normalize_extensions(extensions_entry.get().split(","))
         selected_types = [name for name, var in type_vars.items() if var.get()]
 
@@ -286,7 +285,7 @@ def create_gui():
         root.destroy() # Close the GUI window before starting extraction
 
         try:
-            extract_assets_from_bundles(source_path, output_path, selected_types, cpu_percent, target_extensions)
+            extract_assets_from_bundles(source_path, output_path, selected_types, cpu_cores, target_extensions)
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -304,11 +303,13 @@ def create_gui():
     root.mainloop()
 
 def main():
+    total_cpu_count = multiprocessing.cpu_count()
+
     parser = argparse.ArgumentParser(description="Unity Asset Extractor")
     parser.add_argument("-s", "--source", help="Path to source directory containing .unity3d files")
     parser.add_argument("-o", "--output", help="Path to output directory for extracted assets")
-    parser.add_argument("-c", "--cpu", type=int, choices=[25, 50, 75, 100], default=100,
-                        help="Percentage of CPU to use (25, 50, 75, 100)")
+    parser.add_argument("-c", "--cpu", type=int, default=total_cpu_count,
+                        help=f"Number of CPU cores to use (1-{total_cpu_count})")
     parser.add_argument("-t", "--type", nargs='*', choices=[t.lower() for t in DEFAULT_TYPES],
                         help=f"File types to extract (e.g., {' '.join([t.lower() for t in DEFAULT_TYPES])})")
     parser.add_argument("-e", "--extensions", nargs='*', default=DEFAULT_BUNDLE_EXTENSIONS,
@@ -328,8 +329,13 @@ def main():
         if not target_extensions:
             console.print("[bold red]Error: Please provide at least one valid extension via --extensions.[/bold red]")
             sys.exit(1)
+
+        if args.cpu < 1 or args.cpu > total_cpu_count:
+            console.print(f"[bold red]Error: --cpu must be between 1 and {total_cpu_count}.[/bold red]")
+            sys.exit(1)
+
         console.print(
-            f"CLI Mode: Source='{args.source}', Output='{args.output}', CPU={args.cpu}%, "
+            f"CLI Mode: Source='{args.source}', Output='{args.output}', CPU Cores={args.cpu}, "
             f"Types={selected_types}, Extensions={target_extensions}"
         )
         extract_assets_from_bundles(args.source, args.output, selected_types, args.cpu, target_extensions)
