@@ -54,7 +54,7 @@ run.cmd
 or directly:
 
 ```bat
-python assest_extracter.py
+python asset_extracter.py
 ```
 
 GUI fields:
